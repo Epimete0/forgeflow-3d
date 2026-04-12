@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  price       Float
+  weight      Float
+  printTime   Int
+  description String?
+  category    String
+  stlFile     String?
+  notes       String?
+  orderItems  OrderItem[]
+}
+
+model Filament {
+  id              String   @id @default(cuid())
+  brand           String
+  type            String
+  color           String
+  initialWeight   Float
+  remainingWeight Float
+  price           Float
+  provider        String?
+  purchaseDate    String
+  orderItems      OrderItem[]
+  wasteRecords    WasteRecord[]
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  customerName   String
+  customerPhone  String?
+  orderDate      String
+  notes          String?
+  status         String      // "pendiente", "en impresión", "listo", "entregado", "cancelado"
+  items          OrderItem[]
+  total          Float
+  paid           Float
+  pending        Float
+  paymentMethod  String      // "efectivo", "transferencia", "tarjeta", "otro"
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id])
+  productName    String
+  quantity       Int
+  color          String
+  filamentId     String
+  filament       Filament @relation(fields: [filamentId], references: [id])
+  unitPrice      Float
+  totalWeight    Float
+  totalPrintTime Int
+  completed      Boolean  @default(false)
+}
+
+model WasteRecord {
+  id         String   @id @default(cuid())
+  filamentId String
+  filament   Filament @relation(fields: [filamentId], references: [id])
+  weight     Float
+  reason     String
+  date       String
+}
+
+model ActivityEvent {
+  id          String   @id @default(cuid())
+  type        String
+  description String
+  timestamp   String
+}
+
+model Printer {
+  id                   String   @id @default(cuid())
+  name                 String
+  model                String
+  status               String   // "disponible", "imprimiendo", "mantenimiento", "error"
+  totalHours           Float
+  lastMaintenanceHours Float
+  purchaseDate         String
+  maintenanceRecords   MaintenanceRecord[]
+}
+
+model MaintenanceRecord {
+  id                 String   @id @default(cuid())
+  printerId          String
+  printer            Printer  @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  type               String
+  description        String
+  date               String
+  hoursAtMaintenance Float
+}
+
+model CostSettings {
+  id                        Int     @id @default(1)
+  electricityPriceKwh       Float
+  printerPowerWatts         Float
+  machineWearPerHour        Float
+  defaultProfitMargin       Float
+  vatRate                   Float
+  personalSalaryPercentage  Float
+}

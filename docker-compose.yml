@@ -1,0 +1,13 @@
+services:
+  forgeflow:
+    build: .
+    container_name: forgeflow-3d
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dev.db:/app/dev.db
+      - ./backups:/app/backups
+    restart: always
+    environment:
+      - PORT=3000
+      - NODE_ENV=production

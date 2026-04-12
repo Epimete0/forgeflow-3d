@@ -1,0 +1,13 @@
+node_modules
+dist
+dev.db
+backups
+.env
+*.db-journal
+*.log
+.git
+.vscode
+README.md
+Ejecutar.bat
+lint_*.txt
+test_prisma.cjs
