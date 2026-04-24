@@ -181,8 +181,8 @@ export default function Dashboard({ state }: DashboardProps) {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Próxima Entrega</p>
-            <p className="text-xs font-bold text-primary">Hoy, 18:00</p>
+            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Listos para Entrega</p>
+            <p className="text-xs font-bold text-primary">{stats.ready} pedido{stats.ready !== 1 ? 's' : ''}</p>
           </div>
         </div>
       </div>

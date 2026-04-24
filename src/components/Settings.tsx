@@ -85,7 +85,7 @@ export default function Settings({ state }: SettingsProps) {
     a.download = `forgeflow_backend_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    addActivity("pago_registrado", "Respaldo de datos exportado");
+    addActivity("sistema_actualizado", "Respaldo de datos exportado");
   };
 
   const importData = async (e: React.ChangeEvent<HTMLInputElement>) => {

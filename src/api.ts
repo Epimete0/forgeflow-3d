@@ -61,4 +61,9 @@ export const api = {
     create: (data: any) => request("/expenses", { method: "POST", body: JSON.stringify(data) }),
     delete: (id: string) => request(`/expenses/${id}`, { method: "DELETE" }),
   },
+  cashMovements: {
+    list: () => request("/cash-movements"),
+    create: (data: any) => request("/cash-movements", { method: "POST", body: JSON.stringify(data) }),
+    delete: (id: string) => request(`/cash-movements/${id}`, { method: "DELETE" }),
+  },
 };

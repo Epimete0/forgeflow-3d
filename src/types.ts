@@ -118,3 +118,13 @@ export interface Expense {
   date: string;
   paymentMethod: string;
 }
+
+export type CashMovementType = "retiro_sueldo" | "pago_iva" | "otro_retiro" | "otro_ingreso";
+
+export interface CashMovement {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  description?: string;
+  date: string;
+}

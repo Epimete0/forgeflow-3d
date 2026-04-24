@@ -114,6 +114,14 @@ export function initDb() {
       date TEXT NOT NULL,
       paymentMethod TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS CashMovement (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      amount REAL NOT NULL,
+      description TEXT,
+      date TEXT NOT NULL
+    );
   `);
 
   // === Migrations: Multi-Material Support ===

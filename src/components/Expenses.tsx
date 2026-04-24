@@ -75,8 +75,7 @@ export default function Expenses({ state }: ExpensesProps) {
       addActivity("gasto_registrado", `Gasto registrado: ${expenseData.description} (${formatCurrency(expenseData.amount)})`);
       setIsModalOpen(false);
     } finally {
-      setIsSaving(true); // Will be reset by refreshData trigger or manual reset
-      setTimeout(() => setIsSaving(false), 500); 
+      setIsSaving(false);
     }
   };
 

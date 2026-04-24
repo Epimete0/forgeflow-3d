@@ -275,7 +275,7 @@ export default function Orders({ state }: OrdersProps) {
   const handleDelete = async () => {
     if (orderToDelete) {
       await actions.orders.delete(orderToDelete);
-      addActivity("pedido_creado", `Pedido eliminado: ${orderToDelete}`);
+      addActivity("sistema_actualizado", `Pedido eliminado: ${orderToDelete}`);
       setIsDeleteConfirmOpen(false);
       setOrderToDelete(null);
     }
@@ -337,7 +337,7 @@ export default function Orders({ state }: OrdersProps) {
         </div>
 
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
-          {["todos", "pendiente", "en impresión", "listo", "entregado"].map((status) => (
+          {["todos", "pendiente", "en impresión", "listo", "entregado", "finalizado"].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status as any)}
@@ -526,23 +526,41 @@ export default function Orders({ state }: OrdersProps) {
                       </div>
                     </div>
                     <div className="space-y-2 md:col-span-2 mt-2">
-                      <label className="text-[10px] font-bold uppercase text-on-surface-variant/60 block">Asignación de Filamentos por Parte</label>
-                      {item.materials?.map((mat: any) => (
+                      <label className="text-[10px] font-bold uppercase text-on-surface-variant/60 flex items-center gap-2">
+                        Asignación de Filamentos por Parte
+                        {item.materials && item.materials.length > 1 && (
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[9px] font-black">
+                            {item.materials.length} partes
+                          </span>
+                        )}
+                      </label>
+                      {item.materials?.map((mat: any, matIdx: number) => {
+                        const selectedFilament = filaments.find(f => f.id === mat.filamentId);
+                        return (
                         <div key={mat.partId} className="flex flex-col md:flex-row gap-2 bg-white/50 p-2 rounded-lg border border-outline-variant/10 items-center">
-                          <div className="md:w-1/3 text-xs font-bold text-on-surface px-2 truncate" title={mat.name}>{mat.name} <span className="opacity-50 font-normal">({mat.weight}g/u)</span></div>
-                          <select 
-                            value={mat.filamentId} 
-                            onChange={(e) => updateMaterial(item.id, mat.partId, e.target.value)}
-                            className="flex-1 bg-white border-none rounded-lg px-3 py-2 text-[10px] sm:text-xs text-on-surface"
-                            required
-                          >
-                            <option value="">(Seleccione un filamento)</option>
-                            {filaments.map(f => (
-                              <option key={f.id} value={f.id}>{f.brand} {f.type} ({f.color}) - {f.remainingWeight}g disp.</option>
-                            ))}
-                          </select>
+                          <div className="md:w-1/3 text-xs font-bold text-on-surface px-2 truncate flex items-center gap-2" title={mat.name}>
+                            <span className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black shrink-0">{matIdx + 1}</span>
+                            {mat.name} <span className="opacity-50 font-normal">({mat.weight}g/u)</span>
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                            {selectedFilament && (
+                              <span className="w-4 h-4 rounded-full border-2 border-white shadow-sm shrink-0" style={{ backgroundColor: getFilamentColor(selectedFilament.color) }} title={selectedFilament.color} />
+                            )}
+                            <select 
+                              value={mat.filamentId} 
+                              onChange={(e) => updateMaterial(item.id, mat.partId, e.target.value)}
+                              className="flex-1 bg-white border-none rounded-lg px-3 py-2 text-[10px] sm:text-xs text-on-surface"
+                              required
+                            >
+                              <option value="">(Seleccione un filamento)</option>
+                              {filaments.map(f => (
+                                <option key={f.id} value={f.id}>{f.brand} {f.type} ({f.color}) - {f.remainingWeight}g disp.</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-outline-variant/5">
@@ -849,4 +867,22 @@ function OrderRow({ order, onEdit, onDelete, onTrack, onAnalyze }: { order: Orde
       </div>
     </motion.div>
   );
+}
+
+function getFilamentColor(colorName: string) {
+  const colors: Record<string, string> = {
+    "Negro": "#1a1a1a",
+    "Azul Cobalto": "#1e3a8a",
+    "Blanco": "#ffffff",
+    "Rojo": "#ef4444",
+    "Gris": "#6b7280",
+    "Naranja": "#f97316",
+    "Verde": "#22c55e",
+    "Amarillo": "#eab308",
+    "Rosa": "#ec4899",
+    "Azul": "#3b82f6",
+    "Morado": "#8b5cf6",
+    "Transparente": "#e5e7eb",
+  };
+  return colors[colorName] || "#9ca3af";
 }

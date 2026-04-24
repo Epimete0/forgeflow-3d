@@ -429,6 +429,30 @@ app.delete("/api/expenses/:id", (req, res) => {
   res.json({ success: true });
 });
 
+// ==================== Cash Movements ====================
+app.get("/api/cash-movements", (req, res) => {
+  const movements = db.prepare("SELECT * FROM CashMovement ORDER BY date DESC").all();
+  res.json(movements);
+});
+
+app.post("/api/cash-movements", (req, res) => {
+  const movement = {
+    id: `CM-${Date.now()}`,
+    ...req.body,
+    date: req.body.date || new Date().toISOString(),
+  };
+  db.prepare(`
+    INSERT INTO CashMovement (id, type, amount, description, date)
+    VALUES (@id, @type, @amount, @description, @date)
+  `).run(movement);
+  res.json(movement);
+});
+
+app.delete("/api/cash-movements/:id", (req, res) => {
+  db.prepare("DELETE FROM CashMovement WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
+});
+
 // Vite middleware for development
 if (process.env.NODE_ENV !== "production") {
   const vite = await createViteServer({

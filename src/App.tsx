@@ -29,7 +29,7 @@ import {
 export const shortId = (id: string) => `#${id.slice(-6).toUpperCase()}`;
 
 import { cn } from "./lib/utils";
-import { Product, Filament, Order, ActivityEvent, CostSettings, WasteRecord, Printer, MaintenanceRecord, Expense } from "./types";
+import { Product, Filament, Order, ActivityEvent, CostSettings, WasteRecord, Printer, MaintenanceRecord, Expense, CashMovement } from "./types";
 import { INITIAL_PRODUCTS, INITIAL_FILAMENTS, INITIAL_ORDERS, INITIAL_ACTIVITY, INITIAL_COST_SETTINGS, INITIAL_PRINTERS } from "./constants";
 
 // Components (to be created)
@@ -335,6 +335,7 @@ export default function App() {
   const [costSettings, setCostSettings] = useState<CostSettings>(INITIAL_COST_SETTINGS);
   const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Initial Data Fetching
@@ -347,7 +348,8 @@ export default function App() {
         activityData, 
         settingsData, 
         wasteData,
-        expensesData
+        expensesData,
+        cashMovementsData
       ] = await Promise.all([
         import("./api").then(m => m.api.products.list()),
         import("./api").then(m => m.api.filaments.list()),
@@ -356,6 +358,7 @@ export default function App() {
         import("./api").then(m => m.api.settings.get()),
         import("./api").then(m => m.api.waste.list()),
         import("./api").then(m => m.api.expenses.list()),
+        import("./api").then(m => m.api.cashMovements.list()),
       ]);
 
       setProducts(productsData);
@@ -365,6 +368,7 @@ export default function App() {
       if (settingsData) setCostSettings(settingsData);
       setWasteRecords(wasteData);
       setExpenses(expensesData);
+      setCashMovements(cashMovementsData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -444,6 +448,11 @@ export default function App() {
         const api = await import("./api").then(m => m.api);
         await api.waste.create(data);
         refreshData();
+      },
+      delete: async (id: string) => {
+        const api = await import("./api").then(m => m.api);
+        await api.waste.delete(id);
+        refreshData();
       }
     },
     settings: {
@@ -464,6 +473,18 @@ export default function App() {
         await api.expenses.delete(id);
         refreshData();
       }
+    },
+    cashMovements: {
+      create: async (data: any) => {
+        const api = await import("./api").then(m => m.api);
+        await api.cashMovements.create(data);
+        refreshData();
+      },
+      delete: async (id: string) => {
+        const api = await import("./api").then(m => m.api);
+        await api.cashMovements.delete(id);
+        refreshData();
+      }
     }
   };
 
@@ -475,6 +496,7 @@ export default function App() {
     costSettings, setCostSettings: actions.settings.save,
     wasteRecords, setWasteRecords: actions.waste.create,
     expenses, setExpenses: actions.expenses.create,
+    cashMovements,
     addActivity,
     actions, // Exporting full actions object
     isDarkMode, setIsDarkMode,

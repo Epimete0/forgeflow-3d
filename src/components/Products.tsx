@@ -39,7 +39,7 @@ export default function Products({ state }: ProductsProps) {
 
   // Form State for Calculator
   const [formParts, setFormParts] = useState<{id: string, name: string, weight: number}[]>([{id: "1", name: "Base", weight: 0}]);
-  const [formPrintTime, setFormPrintTime] = useState<number>(0);
+  const [formPrintTime, setFormPrintTime] = useState<string>("");
   
   const formWeight = formParts.reduce((acc, p) => acc + (p.weight || 0), 0);
 
@@ -69,10 +69,10 @@ export default function Products({ state }: ProductsProps) {
   useEffect(() => {
     if (editingProduct) {
       setFormParts(editingProduct.parts && editingProduct.parts.length > 0 ? editingProduct.parts : [{id: "1", name: "Base", weight: editingProduct.weight}]);
-      setFormPrintTime(editingProduct.printTime);
+      setFormPrintTime(String(editingProduct.printTime));
     } else {
       setFormParts([{id: "1", name: "Base", weight: 0}]);
-      setFormPrintTime(0);
+      setFormPrintTime("");
     }
   }, [editingProduct, isModalOpen]);
 
@@ -83,8 +83,9 @@ export default function Products({ state }: ProductsProps) {
     if (!filament || formWeight === 0) return;
 
     const materialCost = (formWeight / 1000) * filament.price;
-    const energyCost = (costSettings.printerPowerWatts / 1000) * (formPrintTime / 60) * costSettings.electricityPriceKwh;
-    const wearCost = (formPrintTime / 60) * costSettings.machineWearPerHour;
+    const printMinutes = Number(formPrintTime) || 0;
+    const energyCost = (costSettings.printerPowerWatts / 1000) * (printMinutes / 60) * costSettings.electricityPriceKwh;
+    const wearCost = (printMinutes / 60) * costSettings.machineWearPerHour;
     
     const totalCost = materialCost + energyCost + wearCost;
     const price = totalCost * (1 + costSettings.defaultProfitMargin / 100);
@@ -102,7 +103,7 @@ export default function Products({ state }: ProductsProps) {
         name: formData.get("name") as string,
         price: Number(formData.get("price")),
         weight: formParts.reduce((acc, p) => acc + (p.weight || 0), 0),
-        printTime: Number(formData.get("printTime")),
+        printTime: Number(formPrintTime) || 0,
         category: formData.get("category") as string,
         description: formData.get("description") as string,
         parts: formParts,
@@ -271,8 +272,9 @@ export default function Products({ state }: ProductsProps) {
                 name="printTime" 
                 type="number" 
                 value={formPrintTime} 
-                onChange={(e) => setFormPrintTime(Number(e.target.value))}
+                onChange={(e) => setFormPrintTime(e.target.value)}
                 required 
+                min="0"
                 className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm" 
                 placeholder="45" 
               />
