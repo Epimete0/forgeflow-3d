@@ -109,6 +109,74 @@ app.get("/api/orders", (req, res) => {
   res.json(results);
 });
 
+// Import endpoint: inserts order WITHOUT deducting filament (used by backup restore)
+app.post("/api/orders/import", (req, res) => {
+  const { items, ...orderData } = req.body;
+  const orderId = orderData.id || crypto.randomUUID();
+
+  const importOrderTransaction = db.transaction(() => {
+    // Check if order already exists
+    const existing = db.prepare("SELECT id FROM Orders WHERE id = ?").get(orderId);
+    if (existing) {
+      return null; // Skip duplicate
+    }
+
+    const orderStmt = db.prepare(`
+      INSERT INTO Orders (id, customerName, customerPhone, orderDate, notes, status, total, paid, pending, paymentMethod)
+      VALUES (@id, @customerName, @customerPhone, @orderDate, @notes, @status, @total, @paid, @pending, @paymentMethod)
+    `);
+    orderStmt.run({
+      id: orderId,
+      customerName: orderData.customerName,
+      customerPhone: orderData.customerPhone || "",
+      orderDate: orderData.orderDate,
+      notes: orderData.notes || "",
+      status: orderData.status,
+      total: orderData.total,
+      paid: orderData.paid,
+      pending: orderData.pending,
+      paymentMethod: orderData.paymentMethod
+    });
+
+    if (items && items.length > 0) {
+      const itemStmt = db.prepare(`
+        INSERT INTO OrderItem (id, orderId, productId, productName, quantity, color, filamentId, unitPrice, totalWeight, totalPrintTime, completed, materials)
+        VALUES (@id, @orderId, @productId, @productName, @quantity, @color, @filamentId, @unitPrice, @totalWeight, @totalPrintTime, @completed, @materials)
+      `);
+      for (const item of items) {
+        itemStmt.run({
+          id: item.id || crypto.randomUUID(),
+          orderId: orderId,
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          color: item.color || "",
+          filamentId: item.filamentId || "",
+          unitPrice: item.unitPrice,
+          totalWeight: item.totalWeight,
+          totalPrintTime: item.totalPrintTime,
+          completed: item.completed ? 1 : 0,
+          materials: item.materials ? JSON.stringify(item.materials) : null
+        });
+      }
+    }
+
+    return { ...orderData, id: orderId, items };
+  });
+
+  try {
+    const result = importOrderTransaction();
+    if (result === null) {
+      res.json({ skipped: true, id: orderId });
+    } else {
+      res.json(result);
+    }
+  } catch (error) {
+    console.error("Order import error:", error);
+    res.status(500).json({ error: "Failed to import order" });
+  }
+});
+
 app.post("/api/orders", (req, res) => {
   const { items, ...orderData } = req.body;
   const orderId = orderData.id || crypto.randomUUID();
@@ -417,16 +485,54 @@ app.get("/api/expenses", (req, res) => {
 
 app.post("/api/expenses", (req, res) => {
   const expense = { ...req.body, id: crypto.randomUUID() };
-  db.prepare(`
-    INSERT INTO Expense (id, category, description, amount, date, paymentMethod)
-    VALUES (@id, @category, @description, @amount, @date, @paymentMethod)
-  `).run(expense);
-  res.json(expense);
+  const movementId = `CM-${Date.now()}`;
+
+  const createExpenseTransaction = db.transaction(() => {
+    // 1. Create the expense record
+    db.prepare(`
+      INSERT INTO Expense (id, category, description, amount, date, paymentMethod)
+      VALUES (@id, @category, @description, @amount, @date, @paymentMethod)
+    `).run(expense);
+
+    // 2. Auto-create a linked CashMovement so it's visible in the treasury history
+    db.prepare(`
+      INSERT INTO CashMovement (id, type, amount, description, date, relatedExpenseId)
+      VALUES (@id, @type, @amount, @description, @date, @relatedExpenseId)
+    `).run({
+      id: movementId,
+      type: "gasto_operacional",
+      amount: expense.amount,
+      description: `[${expense.category}] ${expense.description}`,
+      date: expense.date || new Date().toISOString(),
+      relatedExpenseId: expense.id,
+    });
+
+    return expense;
+  });
+
+  try {
+    const result = createExpenseTransaction();
+    res.json(result);
+  } catch (error) {
+    console.error("Expense creation error:", error);
+    res.status(500).json({ error: "Failed to create expense" });
+  }
 });
 
 app.delete("/api/expenses/:id", (req, res) => {
-  db.prepare("DELETE FROM Expense WHERE id = ?").run(req.params.id);
-  res.json({ success: true });
+  const deleteExpenseTransaction = db.transaction(() => {
+    // Also delete any linked CashMovement
+    db.prepare("DELETE FROM CashMovement WHERE relatedExpenseId = ?").run(req.params.id);
+    db.prepare("DELETE FROM Expense WHERE id = ?").run(req.params.id);
+  });
+
+  try {
+    deleteExpenseTransaction();
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Expense deletion error:", error);
+    res.status(500).json({ error: "Failed to delete expense" });
+  }
 });
 
 // ==================== Cash Movements ====================
@@ -440,10 +546,11 @@ app.post("/api/cash-movements", (req, res) => {
     id: `CM-${Date.now()}`,
     ...req.body,
     date: req.body.date || new Date().toISOString(),
+    relatedExpenseId: req.body.relatedExpenseId || null,
   };
   db.prepare(`
-    INSERT INTO CashMovement (id, type, amount, description, date)
-    VALUES (@id, @type, @amount, @description, @date)
+    INSERT INTO CashMovement (id, type, amount, description, date, relatedExpenseId)
+    VALUES (@id, @type, @amount, @description, @date, @relatedExpenseId)
   `).run(movement);
   res.json(movement);
 });

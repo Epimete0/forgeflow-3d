@@ -25,7 +25,7 @@ import {
   Activity,
   Box
 } from "lucide-react";
-import { cn, formatCurrency } from "../lib/utils";
+import { cn, formatCurrency, generateId } from "../lib/utils";
 import { shortId } from "../App";
 import { Order, OrderStatus, Product, Filament, PaymentMethod } from "../types";
 import Modal from "./Modal";
@@ -129,7 +129,7 @@ export default function Orders({ state }: OrdersProps) {
       const prodParts = firstProduct?.parts && firstProduct.parts.length > 0 ? firstProduct.parts : [{ id: "1", name: "Base", weight: firstProduct?.weight || 0 }];
       
       setFormItems([{
-        id: Math.random().toString(36).substr(2, 9),
+        id: generateId(),
         productId: products[0]?.id || "",
         productName: products[0]?.name || "",
         quantity: 1,
@@ -150,7 +150,7 @@ export default function Orders({ state }: OrdersProps) {
     const prodParts = firstProduct?.parts && firstProduct.parts.length > 0 ? firstProduct.parts : [{ id: "1", name: "Base", weight: firstProduct?.weight || 0 }];
     
     setFormItems([...formItems, {
-      id: Math.random().toString(36).substr(2, 9),
+      id: generateId(),
       productId: products[0]?.id || "",
       productName: products[0]?.name || "",
       quantity: 1,

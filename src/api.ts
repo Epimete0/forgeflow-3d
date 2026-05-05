@@ -30,6 +30,7 @@ export const api = {
   orders: {
     list: () => request("/orders"),
     create: (data: any) => request("/orders", { method: "POST", body: JSON.stringify(data) }),
+    import: (data: any) => request("/orders/import", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => request(`/orders/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: string) => request(`/orders/${id}`, { method: "DELETE" }),
   },

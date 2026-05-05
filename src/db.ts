@@ -128,6 +128,7 @@ export function initDb() {
   // These are safe to run multiple times (try/catch ignores "duplicate column" errors)
   try { db.exec(`ALTER TABLE Product ADD COLUMN parts TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE OrderItem ADD COLUMN materials TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE CashMovement ADD COLUMN relatedExpenseId TEXT;`); } catch (_) {}
 
   // Initial Cost Settings if not exists
   const settingsCount = db.prepare('SELECT count(*) as count FROM CostSettings').get() as { count: number };
@@ -136,6 +137,35 @@ export function initDb() {
       INSERT INTO CostSettings (id, electricityPriceKwh, printerPowerWatts, machineWearPerHour, defaultProfitMargin, vatRate, personalSalaryPercentage)
       VALUES (1, 120, 150, 200, 50, 19, 30)
     `).run();
+  }
+
+  // === Migration: Backfill CashMovements for existing Expenses ===
+  // Creates CashMovements for any Expense that doesn't already have one linked
+  const orphanExpenses = db.prepare(`
+    SELECT e.* FROM Expense e
+    LEFT JOIN CashMovement cm ON cm.relatedExpenseId = e.id
+    WHERE cm.id IS NULL
+  `).all() as any[];
+
+  if (orphanExpenses.length > 0) {
+    const insertMovement = db.prepare(`
+      INSERT INTO CashMovement (id, type, amount, description, date, relatedExpenseId)
+      VALUES (@id, @type, @amount, @description, @date, @relatedExpenseId)
+    `);
+    const backfillTransaction = db.transaction(() => {
+      for (const expense of orphanExpenses) {
+        insertMovement.run({
+          id: `CM-BF-${expense.id.slice(-8)}`,
+          type: "gasto_operacional",
+          amount: expense.amount,
+          description: `[${expense.category}] ${expense.description}`,
+          date: expense.date,
+          relatedExpenseId: expense.id,
+        });
+      }
+    });
+    backfillTransaction();
+    console.log(`[Migration] Backfilled ${orphanExpenses.length} expense(s) → CashMovements`);
   }
 }
 

@@ -16,7 +16,7 @@ import {
   Zap,
   TrendingUp
 } from "lucide-react";
-import { cn, formatCurrency } from "../lib/utils";
+import { cn, formatCurrency, generateId } from "../lib/utils";
 import { Product, CostSettings, Filament } from "../types";
 import Modal from "./Modal";
 
@@ -44,7 +44,7 @@ export default function Products({ state }: ProductsProps) {
   const formWeight = formParts.reduce((acc, p) => acc + (p.weight || 0), 0);
 
   const addPart = () => {
-    setFormParts([...formParts, { id: crypto.randomUUID(), name: `Parte ${formParts.length + 1}`, weight: 0 }]);
+    setFormParts([...formParts, { id: generateId(), name: `Parte ${formParts.length + 1}`, weight: 0 }]);
   };
   const removePart = (id: string) => {
     if (formParts.length > 1) {

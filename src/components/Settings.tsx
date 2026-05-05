@@ -29,6 +29,8 @@ interface SettingsProps {
     orders: any[];
     activity: any[];
     wasteRecords: any[];
+    expenses: any[];
+    cashMovements: any[];
     isDarkMode: boolean;
     setIsDarkMode: (d: boolean) => void;
     actions: any;
@@ -42,7 +44,9 @@ export default function Settings({ state }: SettingsProps) {
     filaments, 
     orders, 
     activity, 
-    wasteRecords, 
+    wasteRecords,
+    expenses,
+    cashMovements,
     isDarkMode, setIsDarkMode,
     actions
   } = state;
@@ -75,8 +79,10 @@ export default function Settings({ state }: SettingsProps) {
       activity,
       costSettings,
       wasteRecords,
+      expenses,
+      cashMovements,
       exportDate: new Date().toISOString(),
-      version: "2.1 (Cloud)"
+      version: "2.2 (Cloud)"
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -102,25 +108,46 @@ export default function Settings({ state }: SettingsProps) {
       const api = await import("../api").then(m => m.api);
 
       let imported = 0;
+      let skipped = 0;
 
+      // Import filaments first (orders reference them)
       if (data.filaments?.length) {
         for (const f of data.filaments) {
-          try { await api.filaments.create(f); imported++; } catch (_) {}
+          try { await api.filaments.create(f); imported++; } catch (_) { skipped++; }
         }
       }
+      // Import products
       if (data.products?.length) {
         for (const p of data.products) {
-          try { await api.products.create(p); imported++; } catch (_) {}
+          try { await api.products.create(p); imported++; } catch (_) { skipped++; }
         }
       }
+      // Import orders using SAFE endpoint (no inventory deduction)
       if (data.orders?.length) {
         for (const o of data.orders) {
-          try { await api.orders.create(o); imported++; } catch (_) {}
+          try { 
+            const result = await api.orders.import(o);
+            if (!result.skipped) imported++;
+            else skipped++;
+          } catch (_) { skipped++; }
+        }
+      }
+      // Import expenses
+      if (data.expenses?.length) {
+        for (const exp of data.expenses) {
+          try { await api.expenses.create(exp); imported++; } catch (_) { skipped++; }
+        }
+      }
+      // Import cash movements (skip gasto_operacional since expenses.create auto-creates them)
+      if (data.cashMovements?.length) {
+        for (const cm of data.cashMovements) {
+          if (cm.type === "gasto_operacional") { skipped++; continue; }
+          try { await api.cashMovements.create(cm); imported++; } catch (_) { skipped++; }
         }
       }
 
-      addActivity("sistema_actualizado", `Respaldo importado: ${imported} registros restaurados`);
-      alert(`Importación completada: ${imported} registros cargados. La aplicación se reiniciará para reflejar los cambios.`);
+      addActivity("sistema_actualizado", `Respaldo importado: ${imported} registros restaurados, ${skipped} omitidos`);
+      alert(`Importación completada: ${imported} registros cargados, ${skipped} omitidos (duplicados). La aplicación se reiniciará.`);
       window.location.reload();
     } catch (err) {
       alert("Error al importar: el archivo no es válido o está corrupto.");

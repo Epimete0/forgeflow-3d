@@ -147,10 +147,15 @@ export default function Finance({ state }: FinanceProps) {
     });
 
     const totalCosts = materialCosts + energyCosts + wearCosts + wasteCosts;
+    const grossProfit = netSales - totalCosts;
+    
+    // Sueldo is based on gross profit (before general expenses)
+    const personalSalary = grossProfit > 0 ? grossProfit * ((costSettings.personalSalaryPercentage || 30) / 100) : 0;
+    const businessFundGross = grossProfit > 0 ? grossProfit - personalSalary : 0;
+    
     const totalOperationalExpenses = expenses.reduce((acc: number, e: any) => acc + e.amount, 0);
-    const netProfit = netSales - totalCosts - totalOperationalExpenses;
-    const personalSalary = netProfit > 0 ? netProfit * ((costSettings.personalSalaryPercentage || 30) / 100) : 0;
-    const businessReinvestment = netProfit > 0 ? netProfit - personalSalary : 0;
+    const businessReinvestment = businessFundGross - totalOperationalExpenses;
+    const netProfit = grossProfit - totalOperationalExpenses;
 
     // === TREASURY: Real cash movements ===
     const totalSalaryWithdrawn = cashMovements
@@ -165,10 +170,16 @@ export default function Finance({ state }: FinanceProps) {
     const totalOtherIncome = cashMovements
       .filter(m => m.type === "otro_ingreso")
       .reduce((acc, m) => acc + m.amount, 0);
+    const totalExpenseMovements = cashMovements
+      .filter(m => m.type === "gasto_operacional")
+      .reduce((acc, m) => acc + m.amount, 0);
 
     const salaryAvailable = Math.max(0, personalSalary - totalSalaryWithdrawn);
     const ivaPending = Math.max(0, vat - totalIvaPaid);
-    const cashBalance = totalSales + totalOtherIncome - totalSalaryWithdrawn - totalIvaPaid - totalOtherWithdrawn;
+    
+    // Cash balance: expenses are now tracked as CashMovements (gasto_operacional),
+    // so we no longer subtract totalOperationalExpenses separately to avoid double-counting
+    const cashBalance = totalSales + totalOtherIncome - totalSalaryWithdrawn - totalIvaPaid - totalOtherWithdrawn - totalExpenseMovements;
 
     return {
       totalSales,
@@ -179,8 +190,10 @@ export default function Finance({ state }: FinanceProps) {
       wearCosts,
       wasteCosts,
       totalCosts,
+      grossProfit,
       netProfit,
       personalSalary,
+      businessFundGross,
       businessReinvestment,
       accountsReceivable,
       categoryData: Array.from(categoryCostsMap.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
@@ -188,7 +201,7 @@ export default function Finance({ state }: FinanceProps) {
       trendData: Array.from(monthDataMap.values()).sort((a, b) => a.month.localeCompare(b.month)),
       profitabilityData: Array.from(productProfitMap.values()).sort((a, b) => b.profit - a.profit).slice(0, 5),
       totalOperationalExpenses,
-      margin: netSales > 0 ? (netProfit / netSales) * 100 : 0,
+      margin: netSales > 0 ? (grossProfit / netSales) * 100 : 0,
       // Treasury
       totalSalaryWithdrawn,
       totalIvaPaid,
@@ -232,8 +245,8 @@ export default function Finance({ state }: FinanceProps) {
 
   const pieData = [
     { name: "Sueldo Personal", value: Math.max(0, stats.personalSalary), color: "#60a5fa" },
-    { name: "Reinversión Negocio", value: Math.max(0, stats.businessReinvestment), color: "#1e3a8a" },
-    { name: "Costos Operativos", value: stats.totalCosts, color: "#fb923c" },
+    { name: "Utilidad / Reinversión", value: Math.max(0, stats.businessFundGross), color: "#1e3a8a" },
+    { name: "Costos Op. (Máquina/Material)", value: stats.totalCosts, color: "#fb923c" },
     { name: "IVA", value: stats.vat, color: "#94a3b8" },
   ].filter(d => d.value > 0);
 
@@ -339,24 +352,24 @@ export default function Finance({ state }: FinanceProps) {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
               <div className="flex items-center gap-2 mb-3">
                 <Briefcase className="w-4 h-4 text-emerald-400" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Reinversión</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Utilidad / Reinversión</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/40">Fondo asignado</span>
-                  <span className="font-bold">{formatCurrency(stats.businessReinvestment)}</span>
+                  <span className="text-white/40">Fondo generado</span>
+                  <span className="font-bold">{formatCurrency(stats.businessFundGross)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/40">Gastos operativos</span>
+                  <span className="text-white/40">Gastos registrados</span>
                   <span className="font-bold text-orange-400">-{formatCurrency(stats.totalOperationalExpenses)}</span>
                 </div>
                 <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
-                  <span className="font-bold text-white/60">Libre</span>
-                  <span className="font-black text-emerald-400">{formatCurrency(Math.max(0, stats.businessReinvestment - stats.totalOperationalExpenses))}</span>
+                  <span className="font-bold text-white/60">Disponible en Caja</span>
+                  <span className="font-black text-emerald-400">{formatCurrency(Math.max(0, stats.businessReinvestment))}</span>
                 </div>
               </div>
               <div className="mt-4 py-2.5 bg-emerald-500/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-emerald-300/60 text-center">
-                Fondo del Negocio
+                Fondo del Negocio ({100 - (costSettings.personalSalaryPercentage || 30)}%)
               </div>
             </div>
           </div>
@@ -414,11 +427,13 @@ export default function Finance({ state }: FinanceProps) {
                         mov.type === "retiro_sueldo" ? "bg-blue-500/10 text-blue-600" :
                         mov.type === "pago_iva" ? "bg-slate-500/10 text-slate-600" :
                         mov.type === "otro_retiro" ? "bg-orange-500/10 text-orange-600" :
+                        mov.type === "gasto_operacional" ? "bg-red-500/10 text-red-600" :
                         "bg-emerald-500/10 text-emerald-600"
                       )}>
                         {mov.type === "retiro_sueldo" ? "Sueldo" :
                          mov.type === "pago_iva" ? "IVA" :
-                         mov.type === "otro_retiro" ? "Retiro" : "Ingreso"}
+                         mov.type === "otro_retiro" ? "Retiro" :
+                         mov.type === "gasto_operacional" ? "Gasto Op." : "Ingreso"}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-xs text-on-surface-variant">{mov.description || "—"}</td>

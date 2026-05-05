@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   History
 } from "lucide-react";
-import { cn, formatCurrency } from "../lib/utils";
+import { cn, formatCurrency, getFilamentHexColor } from "../lib/utils";
 import { WasteRecord, Filament } from "../types";
 import Modal from "./Modal";
 
@@ -112,7 +112,7 @@ export default function Waste({ state }: WasteProps) {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: filament?.color }} />
+                        <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: getFilamentHexColor(filament?.color || "") }} />
                         <span className="text-sm font-semibold">{filament?.brand} {filament?.type}</span>
                       </div>
                     </td>
