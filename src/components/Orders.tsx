@@ -46,6 +46,7 @@ export default function Orders({ state }: OrdersProps) {
   const { orders, products, filaments, costSettings, addActivity, actions } = state;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "todos">("todos");
+  const [shippingFilter, setShippingFilter] = useState<string>("todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
@@ -88,6 +89,7 @@ export default function Orders({ state }: OrdersProps) {
   const filteredOrders = orders.filter(o => {
     const matchesSearch = o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || o.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "todos" || o.status === statusFilter;
+    const matchesShipping = shippingFilter === "todos" || (o.shippingStatus || "Pendiente") === shippingFilter;
     
     // Time filtering logic
     const orderDate = new Date(o.orderDate);
@@ -115,7 +117,7 @@ export default function Orders({ state }: OrdersProps) {
       matchesTime = orderDate >= monthAgo;
     }
 
-    return matchesSearch && matchesStatus && matchesTime;
+    return matchesSearch && matchesStatus && matchesTime && matchesShipping;
   });
 
   const openModal = (order: Order | null = null) => {
@@ -249,7 +251,9 @@ export default function Orders({ state }: OrdersProps) {
         total,
         paid: paidAmount,
         pending: total - paidAmount,
-        paymentMethod: formData.get("paymentMethod") as PaymentMethod
+        paymentMethod: formData.get("paymentMethod") as PaymentMethod,
+        shippingMethod: formData.get("shippingMethod") as string,
+        shippingStatus: formData.get("shippingStatus") as string
       };
 
       if (editingOrder) {
@@ -352,6 +356,23 @@ export default function Orders({ state }: OrdersProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+        {["todos", "Pendiente", "Enviado", "Entregado"].map((status) => (
+          <button
+            key={`ship-${status}`}
+            onClick={() => setShippingFilter(status)}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all flex items-center gap-2",
+              shippingFilter === status 
+                ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20" 
+                : "bg-white text-on-surface-variant hover:bg-surface-dim"
+            )}
+          >
+            Envío: {status}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -593,6 +614,24 @@ export default function Orders({ state }: OrdersProps) {
                 <option value="transferencia">Transferencia</option>
                 <option value="efectivo">Efectivo</option>
                 <option value="tarjeta">Tarjeta</option>
+                <option value="mercado_libre">Mercado Libre</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Método Envío</label>
+              <select name="shippingMethod" defaultValue={editingOrder?.shippingMethod || "Retiro Local"} className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm">
+                <option value="Retiro Local">Retiro Local</option>
+                <option value="Mercado Libre">Mercado Libre</option>
+                <option value="Envío por Pagar">Envío por Pagar</option>
+                <option value="Delivery Privado">Delivery Privado</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Estado Envío</label>
+              <select name="shippingStatus" defaultValue={editingOrder?.shippingStatus || "Pendiente"} className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm">
+                <option value="Pendiente">Pendiente</option>
+                <option value="Enviado">Enviado</option>
+                <option value="Entregado">Entregado</option>
               </select>
             </div>
           </div>
@@ -810,6 +849,14 @@ function OrderRow({ order, onEdit, onDelete, onTrack, onAnalyze }: { order: Orde
         <div className="px-3 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/10 text-[10px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
           <Box className="w-3 h-3" />
           {order.items.length} {order.items.length === 1 ? 'Pieza' : 'Piezas'}
+        </div>
+        <div className={cn(
+          "px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1",
+          order.shippingStatus === "Entregado" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+          order.shippingStatus === "Enviado" ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
+          "bg-amber-500/10 text-amber-600 border-amber-500/20"
+        )}>
+          📦 {order.shippingMethod || "Retiro Local"} - {order.shippingStatus || "Pendiente"}
         </div>
         <div className="w-full lg:w-auto mt-2 lg:mt-0 flex flex-wrap gap-1">
           {order.items.map(item => (

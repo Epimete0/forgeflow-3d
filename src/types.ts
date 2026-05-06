@@ -1,5 +1,5 @@
 export type OrderStatus = "pendiente" | "en impresión" | "listo" | "entregado" | "cancelado" | "finalizado";
-export type PaymentMethod = "efectivo" | "transferencia" | "tarjeta" | "otro";
+export type PaymentMethod = "efectivo" | "transferencia" | "tarjeta" | "mercado_libre" | "otro";
 
 export interface Product {
   id: string;
@@ -65,6 +65,8 @@ export interface Order {
   paid: number;
   pending: number;
   paymentMethod: PaymentMethod;
+  shippingMethod?: string;
+  shippingStatus?: string;
 }
 
 export interface CostSettings {

@@ -129,6 +129,8 @@ export function initDb() {
   try { db.exec(`ALTER TABLE Product ADD COLUMN parts TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE OrderItem ADD COLUMN materials TEXT;`); } catch (_) {}
   try { db.exec(`ALTER TABLE CashMovement ADD COLUMN relatedExpenseId TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE Orders ADD COLUMN shippingMethod TEXT;`); } catch (_) {}
+  try { db.exec(`ALTER TABLE Orders ADD COLUMN shippingStatus TEXT;`); } catch (_) {}
 
   // Initial Cost Settings if not exists
   const settingsCount = db.prepare('SELECT count(*) as count FROM CostSettings').get() as { count: number };

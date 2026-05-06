@@ -122,8 +122,8 @@ app.post("/api/orders/import", (req, res) => {
     }
 
     const orderStmt = db.prepare(`
-      INSERT INTO Orders (id, customerName, customerPhone, orderDate, notes, status, total, paid, pending, paymentMethod)
-      VALUES (@id, @customerName, @customerPhone, @orderDate, @notes, @status, @total, @paid, @pending, @paymentMethod)
+      INSERT INTO Orders (id, customerName, customerPhone, orderDate, notes, status, total, paid, pending, paymentMethod, shippingMethod, shippingStatus)
+      VALUES (@id, @customerName, @customerPhone, @orderDate, @notes, @status, @total, @paid, @pending, @paymentMethod, @shippingMethod, @shippingStatus)
     `);
     orderStmt.run({
       id: orderId,
@@ -135,7 +135,9 @@ app.post("/api/orders/import", (req, res) => {
       total: orderData.total,
       paid: orderData.paid,
       pending: orderData.pending,
-      paymentMethod: orderData.paymentMethod
+      paymentMethod: orderData.paymentMethod,
+      shippingMethod: orderData.shippingMethod || "Retiro Local",
+      shippingStatus: orderData.shippingStatus || "Pendiente"
     });
 
     if (items && items.length > 0) {
@@ -184,8 +186,8 @@ app.post("/api/orders", (req, res) => {
   const createOrderTransaction = db.transaction(() => {
     // 1. Create order
     const orderStmt = db.prepare(`
-      INSERT INTO Orders (id, customerName, customerPhone, orderDate, notes, status, total, paid, pending, paymentMethod)
-      VALUES (@id, @customerName, @customerPhone, @orderDate, @notes, @status, @total, @paid, @pending, @paymentMethod)
+      INSERT INTO Orders (id, customerName, customerPhone, orderDate, notes, status, total, paid, pending, paymentMethod, shippingMethod, shippingStatus)
+      VALUES (@id, @customerName, @customerPhone, @orderDate, @notes, @status, @total, @paid, @pending, @paymentMethod, @shippingMethod, @shippingStatus)
     `);
     orderStmt.run({
       id: orderId,
@@ -197,7 +199,9 @@ app.post("/api/orders", (req, res) => {
       total: orderData.total,
       paid: orderData.paid,
       pending: orderData.pending,
-      paymentMethod: orderData.paymentMethod
+      paymentMethod: orderData.paymentMethod,
+      shippingMethod: orderData.shippingMethod || "Retiro Local",
+      shippingStatus: orderData.shippingStatus || "Pendiente"
     });
 
     // 2. Create items and update inventory
@@ -271,10 +275,16 @@ app.put("/api/orders/:id", (req, res) => {
       UPDATE Orders SET 
         customerName = @customerName, customerPhone = @customerPhone, orderDate = @orderDate, 
         notes = @notes, status = @status, total = @total, paid = @paid, 
-        pending = @pending, paymentMethod = @paymentMethod
+        pending = @pending, paymentMethod = @paymentMethod,
+        shippingMethod = @shippingMethod, shippingStatus = @shippingStatus
       WHERE id = @id
     `);
-    orderStmt.run({ ...orderData, id: orderId });
+    orderStmt.run({ 
+      ...orderData, 
+      id: orderId,
+      shippingMethod: orderData.shippingMethod || "Retiro Local",
+      shippingStatus: orderData.shippingStatus || "Pendiente"
+    });
 
     // 4. Create new items and deduct inventory
     const itemStmt = db.prepare(`
